@@ -15,7 +15,6 @@ router = APIRouter()
 @router.get("/jobs", response_model=list[JobRead])
 async def list_jobs(
     company: str | None = None,
-    seniority: str | None = None,
     limit: int = Query(50, le=200),
     offset: int = Query(0, ge=0),
     user: User = Depends(get_current_user),
@@ -23,9 +22,26 @@ async def list_jobs(
     stmt = select(JobPosting).where(JobPosting.user_id == user.id)
     if company:
         stmt = stmt.where(JobPosting.company == company)
-    if seniority:
-        stmt = stmt.where(JobPosting.seniority == seniority)
-    stmt = stmt.order_by(JobPosting.created_at.desc()).limit(limit).offset(offset)
+    stmt = stmt.order_by(JobPosting.discovered_at.desc()).limit(limit).offset(offset)
+
+    async with async_session() as session:
+        result = await session.execute(stmt)
+        return list(result.scalars().all())
+
+
+@router.get("/jobs/ranked", response_model=list[JobRead])
+async def list_ranked_jobs(
+    limit: int = Query(50, le=200),
+    offset: int = Query(0, ge=0),
+    user: User = Depends(get_current_user),
+) -> list[JobRead]:
+    stmt = (
+        select(JobPosting)
+        .where(JobPosting.user_id == user.id, JobPosting.semantic_score.is_not(None))
+        .order_by(JobPosting.semantic_score.desc(), JobPosting.discovered_at.desc())
+        .limit(limit)
+        .offset(offset)
+    )
 
     async with async_session() as session:
         result = await session.execute(stmt)

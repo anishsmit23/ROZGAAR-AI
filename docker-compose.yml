@@ -81,6 +81,21 @@ services:
       - postgres
     restart: unless-stopped
 
+  beat:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: rozgaar-beat
+    env_file:
+      - .env
+    command: ["celery", "-A", "app.tasks.celery_app", "beat", "--loglevel=info", "--scheduler", "redbeat.RedBeatScheduler"]
+    volumes:
+      - ./:/app
+    depends_on:
+      - redis
+      - postgres
+    restart: unless-stopped
+
   ui:
     build:
       context: .

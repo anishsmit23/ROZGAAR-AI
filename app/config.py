@@ -6,7 +6,11 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        extra="allow",
+    )
 
     app_env: str = "development"
     api_v1_prefix: str = "/api/v1"
@@ -16,6 +20,7 @@ class Settings(BaseSettings):
     database_url: str
     redis_url: str
     chroma_url: str
+    serpapi_key: str = ""
 
     minio_endpoint: str
     minio_access_key: str
@@ -37,7 +42,42 @@ class Settings(BaseSettings):
     llm_model: str | None = None
     llm_temperature: float = 0.2
 
+    @property
+    def DATABASE_URL(self) -> str:
+        return self.database_url
+
+    @property
+    def REDIS_URL(self) -> str:
+        return self.redis_url
+
+    @property
+    def CHROMA_URL(self) -> str:
+        return self.chroma_url
+
+    @property
+    def SERPAPI_KEY(self) -> str:
+        return self.serpapi_key
+
+    @property
+    def MINIO_ENDPOINT(self) -> str:
+        return self.minio_endpoint
+
+    @property
+    def MINIO_ACCESS_KEY(self) -> str:
+        return self.minio_access_key
+
+    @property
+    def MINIO_SECRET_KEY(self) -> str:
+        return self.minio_secret_key
+
+    @property
+    def MINIO_BUCKET(self) -> str:
+        return self.minio_bucket
+
 
 @lru_cache
 def get_settings() -> Settings:
     return Settings()
+
+
+settings = get_settings()

@@ -6,17 +6,17 @@ from app.db.base import async_session
 from app.db.models.agent_run import AgentRun
 from app.db.models.user import User
 from app.deps import get_current_user
-from app.schemas.job import JobSearchRequest
+from app.schemas.job import PipelineStartRequest, PipelineStartResponse
 from app.tasks.agent_tasks import run_job_search
 
 router = APIRouter()
 
 
-@router.post("/search")
-async def search_jobs(
-    payload: JobSearchRequest,
+@router.post("/pipeline/start", response_model=PipelineStartResponse)
+async def start_pipeline(
+    payload: PipelineStartRequest,
     user: User = Depends(get_current_user),
-) -> dict:
+) -> PipelineStartResponse:
     async with async_session() as session:
         run = AgentRun(
             user_id=user.id,
@@ -37,4 +37,4 @@ async def search_jobs(
         run.task_id = task_result.id
         await session.commit()
 
-    return {"task_id": task_result.id, "run_id": str(run.id)}
+    return PipelineStartResponse(task_id=task_result.id, run_id=str(run.id))

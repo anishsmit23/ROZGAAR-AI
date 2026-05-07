@@ -10,6 +10,7 @@ router = APIRouter()
 
 
 @router.get("/tasks/{task_id}", response_model=TaskStatusResponse)
+@router.get("/tasks/{task_id}/status", response_model=TaskStatusResponse)
 async def get_task_status(task_id: str) -> TaskStatusResponse:
     result = AsyncResult(task_id, app=celery_app)
     payload = result.result if result.successful() else None

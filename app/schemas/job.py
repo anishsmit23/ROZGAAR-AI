@@ -12,14 +12,23 @@ class JobSearchRequest(BaseModel):
     limit: int = 25
 
 
+class PipelineStartRequest(JobSearchRequest):
+    pass
+
+
+class PipelineStartResponse(BaseModel):
+    task_id: str
+    run_id: str
+
+
 class JobRead(BaseModel):
     id: str
+    title: str
     company: str | None = None
-    role: str | None = None
     location: str | None = None
-    seniority: str | None = None
     source: str | None = None
-    url: str | None = None
-    created_at: datetime | None = None
+    source_url: str | None = None
+    semantic_score: float | None = None
+    discovered_at: datetime | None = None
 
     model_config = {"from_attributes": True}

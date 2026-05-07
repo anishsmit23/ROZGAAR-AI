@@ -1,265 +1,94 @@
 # Rozgaar AI Job Agent
 
-An event-driven, async-first AI job search and application pipeline built for multi-tenant usage. The project runs as a full Docker Compose stack with Postgres, Redis, ChromaDB server mode, MinIO, FastAPI, Celery workers, and a Streamlit dashboard.
+Rozgaar AI is an asynchronous multi-agent pipeline for job discovery, semantic ranking, resume customization, cold email generation, and application tracking.
 
-## Overview
-
-Rozgaar AI automates the repetitive parts of a job hunt:
-
-- discovers relevant jobs from multiple sources
-- normalizes and deduplicates job postings
-- stores semantic memory for retrieval and ranking
-- tailors resumes against a specific job description
-- generates application emails
-- prepares interview questions and model answers
-- records every agent action as an immutable event
-
-The architecture is designed around persistence and replayability rather than fire-and-forget execution. Core state lives in Postgres, vector search lives in ChromaDB, and long-running work is handled by Celery workers.
-
-## Why This Architecture
-
-This repository was designed to avoid the usual failure modes of small AI agent projects:
-
-- SQLite concurrency issues are avoided by using Postgres and async SQLAlchemy
-- in-memory graph state is replaced with persisted checkpoints
-- background tasks are handled by Celery instead of FastAPI background jobs
-- every task and agent step is tracked through an append-only event log
-- all data is scoped by user_id to keep the system multi-tenant ready
-
-## High-Level Flow
-
-1. The UI or API submits a search or tailoring request.
-2. FastAPI validates the request and enqueues a Celery task.
-3. Celery workers execute the agent logic and write state to Postgres.
-4. Agent events are appended for traceability and later inspection.
-5. ChromaDB stores and retrieves embeddings for jobs and resume chunks.
-6. MinIO stores raw HTML or other source artifacts for reprocessing.
+The repository is now aligned to `trdsrd.md`: FastAPI is the API gateway, Celery + Redis run background work, PostgreSQL stores the source of truth, ChromaDB stores embeddings, MinIO stores generated files, and Streamlit provides a lightweight local UI.
 
 ## Runtime Architecture
 
 ```text
-Streamlit UI  ->  FastAPI  ->  Celery (Redis broker)
-                                 |
-                                 v
-                 Postgres + ChromaDB + MinIO + Redis
+Streamlit UI -> FastAPI -> Celery worker -> Agent pipeline
+                    |            |
+                    v            v
+              PostgreSQL     Redis
+              ChromaDB       MinIO
 ```
 
-### Core Services
+## Application Stages
 
-- Postgres: primary relational store and checkpoint backend
-- Redis: Celery broker, rate-limit cache, and dedup helpers
-- ChromaDB: persistent vector store in server mode
-- MinIO: S3-compatible storage for raw HTML artifacts
-- FastAPI: API gateway, auth, and task orchestration
-- Celery workers: long-running job search and agent workflows
-- Streamlit: lightweight dashboard for local usage
+```text
+1 DISCOVERED -> 2 RANKED -> 3 RESUME_CUSTOMIZED -> 4 EMAIL_GENERATED
+              -> 5 APPLIED -> 6 ACKNOWLEDGED -> 7 INTERVIEW_SCHEDULED -> 8 CLOSED
+```
+
+Every transition is recorded in `application_stage_transitions`.
+
+## Core Data Model
+
+- `users`: profile, preferences, skills, resume path, and resume text
+- `job_postings`: discovered listings, source URL, embedding id, and semantic score
+- `applications`: current stage, generated resume path, and email draft
+- `application_stage_transitions`: timestamped stage history
+- `agent_runs`: task/run metadata
+- `agent_events`: append-only agent execution log
+
+## API
+
+All product APIs are under `/api/v1`.
+
+- `POST /api/v1/pipeline/start`
+- `GET /api/v1/jobs/ranked`
+- `POST /api/v1/resume/customize`
+- `POST /api/v1/email/generate`
+- `GET /api/v1/applications/`
+- `PATCH /api/v1/applications/{id}/stage`
+- `GET /api/v1/tasks/{task_id}/status`
+- `GET /health`
+
+Auth routes are still provided by FastAPI Users:
+
+- `POST /api/v1/auth/register`
+- `POST /api/v1/auth/jwt/login`
 
 ## Repository Layout
 
 ```text
-ROZGAAR-AGENT/
-├── docker-compose.yml
-├── .env.example
-├── alembic/
-│   ├── env.py
-│   └── versions/
-│
-├── app/
-│   ├── main.py
-│   ├── config.py
-│   ├── deps.py
-│   ├── api/
-│   │   └── v1/
-│   │       ├── router.py
-│   │       ├── search.py
-│   │       ├── jobs.py
-│   │       ├── applications.py
-│   │       ├── tasks.py
-│   │       └── ws.py
-│   ├── auth/
-│   │   ├── users.py
-│   │   └── schemas.py
-│   ├── db/
-│   │   ├── base.py
-│   │   └── models/
-│   │       ├── user.py
-│   │       ├── job_posting.py
-│   │       ├── application.py
-│   │       ├── resume_version.py
-│   │       ├── agent_run.py
-│   │       ├── agent_event.py
-│   │       ├── email_generated.py
-│   │       └── interview_prep_set.py
-│   ├── vector/
-│   │   ├── client.py
-│   │   └── collections.py
-│   ├── cache/
-│   │   └── redis.py
-│   ├── storage/
-│   │   └── minio.py
-│   ├── agents/
-│   │   ├── graphs/
-│   │   ├── nodes/
-│   │   └── checkpointer.py
-│   ├── tasks/
-│   │   ├── celery_app.py
-│   │   ├── agent_tasks.py
-│   │   └── scraper_tasks.py
-│   ├── scrapers/
-│   │   ├── base.py
-│   │   ├── linkedin.py
-│   │   ├── indeed.py
-│   │   ├── serpapi.py
-│   │   └── naukri.py
-│   └── schemas/
-│       ├── job.py
-│       ├── application.py
-│       └── task.py
-├── ui/
-│   └── streamlit_app.py
-└── tests/
-    ├── unit/
-    └── integration/
+app/
+  api/v1/          FastAPI routes
+  auth/            FastAPI Users integration
+  db/models/       SQLAlchemy persistence model
+  agents/          LangGraph graph and node scaffolding
+  tasks/           Celery tasks
+  vector/          ChromaDB client/collections
+  storage/         MinIO client
+  scrapers/        Job source adapters
+ui/                Streamlit dashboard
+alembic/           Database migration
+tests/             Smoke tests for API wiring and stage model
 ```
-
-## Data Model
-
-### Main Tables
-
-- users: identity, preferences, and resume blobs
-- job_postings: raw and normalized job data
-- applications: user-specific job applications with a state machine
-- resume_versions: versioned resume tree for tailoring history
-- agent_runs: execution metadata for each graph run
-- agent_events: append-only audit log of graph steps
-- emails_generated: generated email drafts and evaluation scores
-- interview_prep_sets: generated interview prep content
-
-### Application State Machine
-
-```text
-DISCOVERED -> TAILORING -> TAILORED -> EMAIL_DRAFT -> REVIEWED -> SUBMITTED -> INTERVIEWING -> CLOSED
-```
-
-State transitions are enforced in application logic rather than by ad hoc updates.
-
-## API
-
-All API routes are versioned under `/api/v1`.
-
-### Health
-
-- GET /health
-
-### Search and Jobs
-
-- POST /api/v1/search
-- GET /api/v1/jobs
-
-### Applications
-
-- POST /api/v1/applications/{job_id}/tailor
-- POST /api/v1/applications/{application_id}/generate-email
-- GET /api/v1/applications
-
-### Tasks and Streaming
-
-- GET /api/v1/tasks/{task_id}
-- WebSocket /api/v1/ws/tasks/{task_id}
-
-### Auth
-
-- POST /api/v1/auth/register
-- POST /api/v1/auth/jwt/login
-
-## Stage 1 Status
-
-Stage 1 is focused on the foundation:
-
-- Docker Compose stack for all core services
-- async SQLAlchemy models with Alembic migrations
-- JWT auth using FastAPI Users with RS256
-- versioned FastAPI routes
-- Celery task stubs with event logging
-- project structure aligned for later agent and scraper expansion
-
-The Stage 1 code is intentionally minimal in the agent layer so the infrastructure is stable before the full graph logic is added.
 
 ## Local Development
 
-### 1. Copy environment file
-
-```bash
-cp .env.example .env
-```
-
-### 2. Start the stack
+1. Copy `.env.example` to `.env` and fill secrets.
+2. Start the stack:
 
 ```bash
 docker compose up --build
 ```
 
-### 3. Apply migrations
+3. Apply migrations:
 
 ```bash
 docker compose run --rm api alembic upgrade head
 ```
 
-### 4. Open the services
+4. Open:
 
-- API: http://localhost:8000
-- UI: http://localhost:8501
-- MinIO Console: http://localhost:9001
+- API: `http://localhost:8000`
+- API docs: `http://localhost:8000/docs`
+- UI: `http://localhost:8501`
+- MinIO Console: `http://localhost:9001`
 
-## Environment Variables
+## Notes
 
-### Required
-
-- DATABASE_URL
-- REDIS_URL
-- CHROMA_URL
-- CELERY_BROKER_URL
-- CELERY_RESULT_BACKEND
-- MINIO_ENDPOINT
-- MINIO_ACCESS_KEY
-- MINIO_SECRET_KEY
-- JWT_PRIVATE_KEY
-- JWT_PUBLIC_KEY
-
-### LLM Configuration
-
-- GROQ_API_KEY for the primary model provider
-- OPENAI_API_KEY for fallback
-- GROQ_BASE_URL if the Groq endpoint changes
-- LLM_MODEL for the selected model name
-- LLM_TEMPERATURE for generation control
-
-### Auth Secrets
-
-- RESET_PASSWORD_SECRET
-- VERIFICATION_SECRET
-
-## Development Notes
-
-- Postgres is the source of truth for application state.
-- Redis is used for broker and lightweight cache behavior.
-- ChromaDB runs in server mode to support concurrent access.
-- MinIO is used instead of the local filesystem for raw artifacts.
-- All data access is scoped by user_id to support multi-tenancy.
-
-## Roadmap
-
-- Stage 2: LangGraph graphs and PostgreSQL checkpointing
-- Stage 3: real scrapers and richer UI flows
-- Stage 4: observability, metrics, and production hardening
-
-## Troubleshooting
-
-- If auth fails, verify the RSA key pair in `.env`.
-- If Celery workers do not start, confirm Redis and Postgres are healthy.
-- If migrations fail, ensure DATABASE_URL points to the Postgres service inside Docker.
-- If Chroma requests fail, confirm the Chroma container is listening on the configured port.
-
-## License
-
-MIT
+The current Celery tasks include deterministic stubs that create a sample discovered job, mark resume customization complete, and generate a placeholder email draft. They preserve the TRD workflow and persistence contracts while leaving real scraper, RAG, and document generation internals ready to fill in next.

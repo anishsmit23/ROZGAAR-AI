@@ -8,12 +8,14 @@ from fastapi import Depends
 from fastapi_users import BaseUserManager, FastAPIUsers
 from fastapi_users.authentication import AuthenticationBackend, BearerTransport
 from fastapi_users.authentication.strategy import Strategy
-from fastapi_users.db import SQLAlchemyUserDatabase
+from fastapi_users_db_sqlalchemy import SQLAlchemyUserDatabase
 from jose import jwt
 
 from app.config import get_settings
 from app.db.base import async_session
 from app.db.models.user import User
+
+settings = get_settings()
 
 
 async def get_user_db() -> AsyncGenerator[SQLAlchemyUserDatabase, None]:
@@ -56,9 +58,6 @@ class RS256JWTStrategy(Strategy[User, UUID]):
             "exp": int(expire.timestamp()),
         }
         return jwt.encode(payload, self.private_key, algorithm="RS256")
-
-
-settings = get_settings()
 
 
 def get_jwt_strategy() -> RS256JWTStrategy:

@@ -17,3 +17,15 @@ if st.button("Check API health"):
         st.success(response.json())
     except Exception as exc:
         st.error(str(exc))
+
+st.subheader("Pipeline")
+with st.form("pipeline_start"):
+    query = st.text_input("Target role", value="Data Scientist")
+    location = st.text_input("Location", value="Remote")
+    submitted = st.form_submit_button("Start discovery")
+
+if submitted:
+    st.info(
+        "Use the FastAPI docs at "
+        f"{PUBLIC_API_URL}/docs to authenticate, then call /api/v1/pipeline/start."
+    )
