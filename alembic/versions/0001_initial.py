@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
+from alembic import op
 
 revision = "0001_initial"
 down_revision = None
@@ -20,12 +20,30 @@ application_state = sa.Enum(
     "INTERVIEW_SCHEDULED",
     "CLOSED",
     name="application_state",
+    native_enum=False,
 )
 
 
 def upgrade() -> None:
     op.execute('CREATE EXTENSION IF NOT EXISTS "pgcrypto"')
-    application_state.create(op.get_bind(), checkfirst=True)
+    op.execute(
+        """
+        DO $$ BEGIN
+            CREATE TYPE application_state AS ENUM (
+                'DISCOVERED',
+                'RANKED',
+                'RESUME_CUSTOMIZED',
+                'EMAIL_GENERATED',
+                'APPLIED',
+                'ACKNOWLEDGED',
+                'INTERVIEW_SCHEDULED',
+                'CLOSED'
+            );
+        EXCEPTION
+            WHEN duplicate_object THEN null;
+        END $$;
+        """
+    )
 
     op.create_table(
         "users",

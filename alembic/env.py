@@ -1,10 +1,14 @@
 from __future__ import annotations
 
 import asyncio
+import sys
+from pathlib import Path
 
 from alembic import context
 from sqlalchemy import pool
 from sqlalchemy.ext.asyncio import create_async_engine
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from app.config import get_settings
 from app.db.base import Base
