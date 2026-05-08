@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 import io
 
 from minio import Minio
@@ -33,7 +31,3 @@ def upload_file(filename: str, data: bytes, content_type: str = "application/pdf
 def download_file(filename: str) -> bytes:
     response = client.get_object(settings.MINIO_BUCKET, filename)
     return response.read()
-
-
-def get_minio_client() -> Minio:
-    return client

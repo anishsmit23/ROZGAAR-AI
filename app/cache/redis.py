@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 import redis.asyncio as aioredis
 
 from app.config import settings
@@ -10,6 +8,8 @@ _redis_client = None
 async def get_redis():
     global _redis_client
     if _redis_client is None:
+        # redis.asyncio.from_url returns a client instance (not a coroutine),
+        # so do not await it. Tests patch this function directly.
         _redis_client = aioredis.from_url(
             settings.REDIS_URL,
             encoding="utf-8",
@@ -23,7 +23,3 @@ async def close_redis():
     if _redis_client:
         await _redis_client.close()
         _redis_client = None
-
-
-def get_redis_client() -> aioredis.Redis:
-    return aioredis.from_url(settings.REDIS_URL, decode_responses=True)
