@@ -43,6 +43,7 @@ htmlcov/
 *.sqlite
 *.sqlite3
 *.log
+celerybeat-schedule
 
 # Vector store / data artifacts
 data/chroma/

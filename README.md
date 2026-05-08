@@ -1,5 +1,10 @@
 # Rozgaar AI Job Agent
 
+![Tests](https://img.shields.io/badge/tests-71%20passing-brightgreen)
+![Coverage](https://img.shields.io/badge/coverage-73%25-green)
+![Python](https://img.shields.io/badge/python-3.11-blue)
+![Docker](https://img.shields.io/badge/docker-compose-blue)
+
 Rozgaar AI is an asynchronous multi-agent pipeline for job discovery, semantic ranking, resume customization, cold email generation, and application tracking.
 
 The repository is now aligned to `trdsrd.md`: FastAPI is the API gateway, Celery + Redis run background work, PostgreSQL stores the source of truth, ChromaDB stores embeddings, MinIO stores generated files, and Streamlit provides a lightweight local UI.

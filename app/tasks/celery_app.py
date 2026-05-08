@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from celery import Celery
 from celery.schedules import crontab
+from kombu import Exchange, Queue
 
 from app.config import get_settings
 
@@ -39,8 +40,8 @@ celery_app.conf.update(
     
     # Queue configuration
     task_queues=(
-        {"name": "agents", "exchange": "agents", "routing_key": "agents.*"},
-        {"name": "scrapers", "exchange": "scrapers", "routing_key": "scrapers.*"},
+        Queue("agents", Exchange("agents"), routing_key="agents.*"),
+        Queue("scrapers", Exchange("scrapers"), routing_key="scrapers.*"),
     ),
     task_default_queue="agents",
     task_default_exchange="agents",
