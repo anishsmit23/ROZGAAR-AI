@@ -76,6 +76,9 @@ services:
     container_name: rozgaar-api
     env_file:
       - .env
+    environment:
+      JWT_PRIVATE_KEY_FILE: /app/private_key.pem
+      JWT_PUBLIC_KEY_FILE: /app/public_key.pem
     command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
     ports:
       - "8000:8000"
@@ -104,6 +107,9 @@ services:
     container_name: rozgaar-worker
     env_file:
       - .env
+    environment:
+      JWT_PRIVATE_KEY_FILE: /app/private_key.pem
+      JWT_PUBLIC_KEY_FILE: /app/public_key.pem
     command: ["celery", "-A", "app.tasks.celery_app", "worker", "--loglevel=info", "-Q", "agents,scrapers"]
     volumes:
       - ./:/app
@@ -121,6 +127,9 @@ services:
     container_name: rozgaar-beat
     env_file:
       - .env
+    environment:
+      JWT_PRIVATE_KEY_FILE: /app/private_key.pem
+      JWT_PUBLIC_KEY_FILE: /app/public_key.pem
     command: ["celery", "-A", "app.tasks.celery_app", "beat", "--loglevel=info"]
     volumes:
       - ./:/app
@@ -140,6 +149,8 @@ services:
       - .env
     environment:
       PUBLIC_API_URL: http://api:8000
+      JWT_PRIVATE_KEY_FILE: /app/private_key.pem
+      JWT_PUBLIC_KEY_FILE: /app/public_key.pem
     command: ["streamlit", "run", "ui/streamlit_app.py", "--server.port", "8501", "--server.address", "0.0.0.0"]
     ports:
       - "8501:8501"

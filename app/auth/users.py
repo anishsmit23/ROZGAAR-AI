@@ -62,8 +62,8 @@ class RS256JWTStrategy(Strategy[User, UUID]):
 
 def get_jwt_strategy() -> RS256JWTStrategy:
     return RS256JWTStrategy(
-        private_key=settings.jwt_private_key,
-        public_key=settings.jwt_public_key,
+        private_key=settings.jwt_private_key_value,
+        public_key=settings.jwt_public_key_value,
         lifetime_seconds=settings.jwt_access_token_expire_minutes * 60,
     )
 

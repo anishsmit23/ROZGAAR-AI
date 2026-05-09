@@ -11,33 +11,43 @@ branch_labels = None
 depends_on = None
 
 
+def _has_column(table_name: str, column_name: str) -> bool:
+    bind = op.get_bind()
+    inspector = sa.inspect(bind)
+    return any(column["name"] == column_name for column in inspector.get_columns(table_name))
+
+
 def upgrade() -> None:
     """Add updated_at column to agent_runs table."""
-    op.add_column(
-        "agent_runs",
-        sa.Column(
-            "updated_at",
-            sa.DateTime(timezone=True),
-            server_default=sa.text("now()"),
-            nullable=False,
-        ),
-    )
+    if not _has_column("agent_runs", "updated_at"):
+        op.add_column(
+            "agent_runs",
+            sa.Column(
+                "updated_at",
+                sa.DateTime(timezone=True),
+                server_default=sa.text("now()"),
+                nullable=False,
+            ),
+        )
 
     """Add updated_at column to job_postings table."""
-    op.add_column(
-        "job_postings",
-        sa.Column(
-            "updated_at",
-            sa.DateTime(timezone=True),
-            server_default=sa.text("now()"),
-            nullable=False,
-        ),
-    )
+    if not _has_column("job_postings", "updated_at"):
+        op.add_column(
+            "job_postings",
+            sa.Column(
+                "updated_at",
+                sa.DateTime(timezone=True),
+                server_default=sa.text("now()"),
+                nullable=False,
+            ),
+        )
 
 
 def downgrade() -> None:
     """Remove updated_at column from job_postings table."""
-    op.drop_column("job_postings", "updated_at")
+    if _has_column("job_postings", "updated_at"):
+        op.drop_column("job_postings", "updated_at")
 
     """Remove updated_at column from agent_runs table."""
-    op.drop_column("agent_runs", "updated_at")
+    if _has_column("agent_runs", "updated_at"):
+        op.drop_column("agent_runs", "updated_at")

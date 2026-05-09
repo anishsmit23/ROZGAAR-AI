@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from functools import lru_cache
+from pathlib import Path
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -30,8 +31,10 @@ class Settings(BaseSettings):
     celery_broker_url: str
     celery_result_backend: str
 
-    jwt_private_key: str
-    jwt_public_key: str
+    jwt_private_key: str = ""
+    jwt_public_key: str = ""
+    jwt_private_key_file: str | None = None
+    jwt_public_key_file: str | None = None
     jwt_access_token_expire_minutes: int = 60
     reset_password_secret: str = "reset-password-secret"
     verification_secret: str = "verification-secret"
@@ -73,6 +76,25 @@ class Settings(BaseSettings):
     @property
     def MINIO_BUCKET(self) -> str:
         return self.minio_bucket
+
+    def _read_secret_value(self, value: str, file_path: str | None, name: str) -> str:
+        if file_path:
+            try:
+                return Path(file_path).read_text(encoding="utf-8").strip()
+            except OSError as exc:
+                raise RuntimeError(f"{name}_FILE could not be read: {file_path}") from exc
+        normalized = value.replace("\\n", "\n").strip()
+        if not normalized:
+            raise RuntimeError(f"{name} or {name}_FILE must be configured")
+        return normalized
+
+    @property
+    def jwt_private_key_value(self) -> str:
+        return self._read_secret_value(self.jwt_private_key, self.jwt_private_key_file, "JWT_PRIVATE_KEY")
+
+    @property
+    def jwt_public_key_value(self) -> str:
+        return self._read_secret_value(self.jwt_public_key, self.jwt_public_key_file, "JWT_PUBLIC_KEY")
 
 
 @lru_cache

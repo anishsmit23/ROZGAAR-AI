@@ -61,6 +61,9 @@ services:
       dockerfile: Dockerfile
     env_file:
       - .env
+    environment:
+      JWT_PRIVATE_KEY_FILE: /run/secrets/jwt_private_key
+      JWT_PUBLIC_KEY_FILE: /run/secrets/jwt_public_key
     command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--proxy-headers"]
     ports:
       - "${API_PORT:-8000}:8000"
@@ -78,6 +81,9 @@ services:
         condition: service_healthy
       minio:
         condition: service_healthy
+    secrets:
+      - jwt_private_key
+      - jwt_public_key
     restart: unless-stopped
 
   worker:
@@ -86,6 +92,9 @@ services:
       dockerfile: Dockerfile
     env_file:
       - .env
+    environment:
+      JWT_PRIVATE_KEY_FILE: /run/secrets/jwt_private_key
+      JWT_PUBLIC_KEY_FILE: /run/secrets/jwt_public_key
     command: ["celery", "-A", "app.tasks.celery_app", "worker", "--loglevel=info", "-Q", "agents,scrapers"]
     depends_on:
       redis:
@@ -94,6 +103,9 @@ services:
         condition: service_healthy
       api:
         condition: service_healthy
+    secrets:
+      - jwt_private_key
+      - jwt_public_key
     restart: unless-stopped
 
   beat:
@@ -102,12 +114,18 @@ services:
       dockerfile: Dockerfile
     env_file:
       - .env
+    environment:
+      JWT_PRIVATE_KEY_FILE: /run/secrets/jwt_private_key
+      JWT_PUBLIC_KEY_FILE: /run/secrets/jwt_public_key
     command: ["celery", "-A", "app.tasks.celery_app", "beat", "--loglevel=info", "--schedule", "/tmp/celerybeat-schedule"]
     depends_on:
       redis:
         condition: service_healthy
       postgres:
         condition: service_healthy
+    secrets:
+      - jwt_private_key
+      - jwt_public_key
     restart: unless-stopped
 
   ui:
@@ -118,6 +136,8 @@ services:
       - .env
     environment:
       PUBLIC_API_URL: http://api:8000
+      JWT_PRIVATE_KEY_FILE: /run/secrets/jwt_private_key
+      JWT_PUBLIC_KEY_FILE: /run/secrets/jwt_public_key
     command: ["streamlit", "run", "ui/streamlit_app.py", "--server.port", "8501", "--server.address", "0.0.0.0", "--server.headless", "true"]
     ports:
       - "${STREAMLIT_PORT:-8501}:8501"
@@ -129,6 +149,9 @@ services:
     depends_on:
       api:
         condition: service_healthy
+    secrets:
+      - jwt_private_key
+      - jwt_public_key
     restart: unless-stopped
 
 volumes:
@@ -136,3 +159,9 @@ volumes:
   redis_data:
   chroma_data:
   minio_data:
+
+secrets:
+  jwt_private_key:
+    file: ./private_key.pem
+  jwt_public_key:
+    file: ./public_key.pem
