@@ -94,6 +94,19 @@ docker compose run --rm api alembic upgrade head
 - UI: `http://localhost:8501`
 - MinIO Console: `http://localhost:9001`
 
+## Docker Deployment
+
+For a live Docker deployment, use the production compose file so containers run from the built image instead of bind-mounting the local source tree:
+
+```bash
+cp .env.example .env
+# Fill all secrets, passwords, public origins, and JWT keys in .env
+docker compose -f docker-compose.prod.yml up --build -d
+docker compose -f docker-compose.prod.yml run --rm api alembic upgrade head
+```
+
+The Streamlit container calls FastAPI through Docker DNS at `http://api:8000`. Expose only the ports you need publicly, normally the Streamlit UI and optionally the API behind a reverse proxy.
+
 ## Notes
 
 The current Celery tasks include deterministic stubs that create a sample discovered job, mark resume customization complete, and generate a placeholder email draft. They preserve the TRD workflow and persistence contracts while leaving real scraper, RAG, and document generation internals ready to fill in next.

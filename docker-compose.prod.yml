@@ -1,19 +1,14 @@
-
-
 services:
   postgres:
     image: postgres:16
-    container_name: rozgaar-postgres
     environment:
-      POSTGRES_USER: ${POSTGRES_USER:-rozgaar}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-rozgaar}
-      POSTGRES_DB: ${POSTGRES_DB:-rozgaar}
-    ports:
-      - "5432:5432"
+      POSTGRES_USER: ${POSTGRES_USER:?POSTGRES_USER is required}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+      POSTGRES_DB: ${POSTGRES_DB:?POSTGRES_DB is required}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER:-rozgaar} -d $${POSTGRES_DB:-rozgaar}"]
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -21,9 +16,7 @@ services:
 
   redis:
     image: redis:7
-    container_name: rozgaar-redis
-    ports:
-      - "6379:6379"
+    command: ["redis-server", "--appendonly", "yes"]
     volumes:
       - redis_data:/data
     healthcheck:
@@ -35,12 +28,9 @@ services:
 
   chroma:
     image: chromadb/chroma:0.5.15
-    container_name: rozgaar-chroma
     environment:
       CHROMA_HOST_ADDR: 0.0.0.0
       CHROMA_HOST_PORT: 8000
-    ports:
-      - "8001:8000"
     volumes:
       - chroma_data:/chroma
     healthcheck:
@@ -52,14 +42,10 @@ services:
 
   minio:
     image: minio/minio:latest
-    container_name: rozgaar-minio
     command: ["server", "/data", "--console-address", ":9001"]
     environment:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
-      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
-    ports:
-      - "9000:9000"
-      - "9001:9001"
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-change-me}
     volumes:
       - minio_data:/data
     healthcheck:
@@ -73,14 +59,11 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: rozgaar-api
     env_file:
       - .env
-    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--proxy-headers"]
     ports:
-      - "8000:8000"
-    volumes:
-      - ./:/app
+      - "${API_PORT:-8000}:8000"
     healthcheck:
       test: ["CMD", "curl", "-f", "http://127.0.0.1:8000/health"]
       interval: 15s
@@ -101,16 +84,15 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: rozgaar-worker
     env_file:
       - .env
     command: ["celery", "-A", "app.tasks.celery_app", "worker", "--loglevel=info", "-Q", "agents,scrapers"]
-    volumes:
-      - ./:/app
     depends_on:
       redis:
         condition: service_healthy
       postgres:
+        condition: service_healthy
+      api:
         condition: service_healthy
     restart: unless-stopped
 
@@ -118,12 +100,9 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: rozgaar-beat
     env_file:
       - .env
-    command: ["celery", "-A", "app.tasks.celery_app", "beat", "--loglevel=info"]
-    volumes:
-      - ./:/app
+    command: ["celery", "-A", "app.tasks.celery_app", "beat", "--loglevel=info", "--schedule", "/tmp/celerybeat-schedule"]
     depends_on:
       redis:
         condition: service_healthy
@@ -135,24 +114,21 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: rozgaar-ui
     env_file:
       - .env
     environment:
       PUBLIC_API_URL: http://api:8000
-    command: ["streamlit", "run", "ui/streamlit_app.py", "--server.port", "8501", "--server.address", "0.0.0.0"]
+    command: ["streamlit", "run", "ui/streamlit_app.py", "--server.port", "8501", "--server.address", "0.0.0.0", "--server.headless", "true"]
     ports:
-      - "8501:8501"
-    volumes:
-      - ./:/app
-    depends_on:
-      api:
-        condition: service_healthy
+      - "${STREAMLIT_PORT:-8501}:8501"
     healthcheck:
       test: ["CMD", "curl", "-f", "http://127.0.0.1:8501/_stcore/health"]
       interval: 15s
       timeout: 10s
       retries: 10
+    depends_on:
+      api:
+        condition: service_healthy
     restart: unless-stopped
 
 volumes:
