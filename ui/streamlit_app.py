@@ -10,6 +10,7 @@ import streamlit as st
 
 
 PUBLIC_API_URL = os.getenv("PUBLIC_API_URL", "http://127.0.0.1:8000").rstrip("/")
+PUBLIC_API_DISPLAY_URL = os.getenv("PUBLIC_API_DISPLAY_URL", "http://localhost:8000").rstrip("/")
 API_PREFIX = "/api/v1"
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
@@ -133,7 +134,7 @@ def render_header() -> None:
             st.error(f"API offline: {error}")
         else:
             st.success(f"API {health.get('status', 'ok') if isinstance(health, dict) else 'ok'}")
-        st.caption(PUBLIC_API_URL)
+        st.caption(PUBLIC_API_DISPLAY_URL)
 
 
 def render_auth_panel() -> None:

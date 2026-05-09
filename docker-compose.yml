@@ -149,6 +149,7 @@ services:
       - .env
     environment:
       PUBLIC_API_URL: http://api:8000
+      PUBLIC_API_DISPLAY_URL: http://localhost:8000
       JWT_PRIVATE_KEY_FILE: /app/private_key.pem
       JWT_PUBLIC_KEY_FILE: /app/public_key.pem
     command: ["streamlit", "run", "ui/streamlit_app.py", "--server.port", "8501", "--server.address", "0.0.0.0"]
