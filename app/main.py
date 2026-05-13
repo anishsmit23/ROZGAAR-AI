@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -7,11 +9,26 @@ from app.api.v1.router import router as api_router
 from app.auth.schemas import UserCreate, UserRead
 from app.auth.users import auth_backend, fastapi_users
 from app.config import get_settings
+from app.db.base import Base, async_engine
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup: Create tables
+    async with async_engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+    yield
+    # Shutdown: cleanup if needed
+    await async_engine.dispose()
 
 
 def create_app() -> FastAPI:
     settings = get_settings()
-    app = FastAPI(title="Rozgaar AI Job Agent", version="1.0.0")
+    app = FastAPI(
+        title="Rozgaar AI Job Agent",
+        version="1.0.0",
+        lifespan=lifespan,
+    )
 
     cors_origins = list(
         {

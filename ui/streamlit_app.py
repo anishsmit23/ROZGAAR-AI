@@ -92,8 +92,9 @@ def request_api(
 ) -> tuple[dict[str, Any] | list[Any] | str | None, str | None, int | None]:
     headers = auth_headers() if auth else {}
     try:
+        url = api_url(path)
         with httpx.Client(timeout=timeout) as client:
-            response = client.request(method, api_url(path), json=json, data=data, headers=headers)
+            response = client.request(method, url, json=json, data=data, headers=headers)
         if response.status_code >= 400:
             return None, readable_error(response), response.status_code
         if not response.content:
@@ -103,7 +104,13 @@ def request_api(
         except ValueError:
             return response.text, None, response.status_code
     except Exception as exc:
+        import traceback
+        traceback.print_exc()
         return None, str(exc), None
+
+
+def normalize_email(email: str) -> str:
+    return email.strip().lower()
 
 
 def readable_error(response: httpx.Response) -> str:
@@ -155,22 +162,27 @@ def render_auth_panel() -> None:
                 password = st.text_input("Password", type="password", key="login_password")
                 submitted = st.form_submit_button("Login", use_container_width=True)
             if submitted:
-                payload = {"username": email, "password": password}
-                result, error, _ = request_api(
-                    "POST",
-                    f"{API_PREFIX}/auth/jwt/login",
-                    data=payload,
-                    auth=False,
-                )
+                normalized = normalize_email(email)
+                payload = {"username": normalized, "password": password}
+                with st.spinner(f"Logging in to {PUBLIC_API_URL}..."):
+                    result, error, status = request_api(
+                        "POST",
+                        f"{API_PREFIX}/auth/jwt/login",
+                        data=payload,
+                        auth=False,
+                    )
+                st.write(f"DEBUG: email='{email}' normalized='{normalized}'")
+                st.write(f"DEBUG: endpoint={PUBLIC_API_URL}{API_PREFIX}/auth/jwt/login")
+                st.write(f"DEBUG: status={status}, error={error}")
                 if error:
-                    st.error(error)
+                    st.error(f"Login failed: {error}")
                 elif isinstance(result, dict) and result.get("access_token"):
                     st.session_state["access_token"] = result["access_token"]
                     st.session_state["token_type"] = result.get("token_type", "bearer")
                     st.success("Logged in")
                     st.rerun()
                 else:
-                    st.error("Login response did not include an access token.")
+                    st.error(f"Login response did not include an access token. Got: {result}")
 
         with register_tab:
             with st.form("register_form"):
@@ -181,23 +193,48 @@ def render_auth_panel() -> None:
                 experience = st.number_input("Experience years", min_value=0, max_value=60, value=0)
                 submitted = st.form_submit_button("Create account", use_container_width=True)
             if submitted:
+                normalized_email = normalize_email(email)
                 payload = {
-                    "email": email,
+                    "email": normalized_email,
                     "password": password,
                     "full_name": full_name or None,
                     "skills": [s.strip() for s in skills.split(",") if s.strip()] or None,
                     "experience_years": int(experience),
                 }
-                _, error, _ = request_api(
-                    "POST",
-                    f"{API_PREFIX}/auth/register",
-                    json=payload,
-                    auth=False,
-                )
+                st.write(f"DEBUG: Registering at {PUBLIC_API_URL}{API_PREFIX}/auth/register")
+                with st.spinner("Creating account..."):
+                    reg_result, error, status = request_api(
+                        "POST",
+                        f"{API_PREFIX}/auth/register",
+                        json=payload,
+                        auth=False,
+                    )
+                st.write(f"DEBUG: Register response status={status}, error={error}, result={reg_result}")
                 if error:
                     st.error(error)
                 else:
-                    st.success("Account created. You can log in now.")
+                    st.success(f"Account created: {reg_result}")
+                    login_payload = {"username": normalized_email, "password": password}
+                    st.write(f"DEBUG: Auto-logging in with username='{normalized_email}'")
+                    with st.spinner("Auto-logging in..."):
+                        login_result, login_error, login_status = request_api(
+                            "POST",
+                            f"{API_PREFIX}/auth/jwt/login",
+                            data=login_payload,
+                            auth=False,
+                        )
+                    st.write(f"DEBUG: Login status={login_status}, error={login_error}")
+                    if login_error:
+                        st.success("Account created. You can log in now.")
+                        st.warning(f"Auto-login failed: {login_error}")
+                    elif isinstance(login_result, dict) and login_result.get("access_token"):
+                        st.session_state["access_token"] = login_result["access_token"]
+                        st.session_state["token_type"] = login_result.get("token_type", "bearer")
+                        st.success("Account created and signed in.")
+                        st.rerun()
+                    else:
+                        st.success("Account created. You can log in now.")
+                        st.warning(f"Auto-login failed: unexpected response: {login_result}")
 
 
 def render_discover_tab() -> None:
