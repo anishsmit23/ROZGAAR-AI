@@ -58,3 +58,7 @@ celery_app.conf.update(
 
 # Auto-discover tasks from modules
 celery_app.autodiscover_tasks(["app.tasks"])
+
+# Explicitly import task modules to ensure registration
+from app.tasks import agent_tasks  # noqa: E402, F401
+from app.tasks import scraper_tasks  # noqa: E402, F401

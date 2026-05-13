@@ -104,7 +104,7 @@ services:
     container_name: rozgaar-worker
     env_file:
       - .env
-    command: ["celery", "-A", "app.tasks.celery_app", "worker", "--loglevel=info", "-Q", "agents,scrapers"]
+    command: ["celery", "-A", "app.tasks.celery_app:celery_app", "worker", "--loglevel=info", "-Q", "agents,scrapers"]
     volumes:
       - ./:/app
     depends_on:
@@ -121,7 +121,7 @@ services:
     container_name: rozgaar-beat
     env_file:
       - .env
-    command: ["celery", "-A", "app.tasks.celery_app", "beat", "--loglevel=info"]
+    command: ["celery", "-A", "app.tasks.celery_app:celery_app", "beat", "--loglevel=info"]
     volumes:
       - ./:/app
     depends_on:
