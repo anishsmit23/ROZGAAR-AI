@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import uuid
 from datetime import datetime
 
 from pydantic import BaseModel
@@ -22,7 +23,7 @@ class PipelineStartResponse(BaseModel):
 
 
 class JobRead(BaseModel):
-    id: str
+    id: uuid.UUID
     title: str
     company: str | None = None
     location: str | None = None
