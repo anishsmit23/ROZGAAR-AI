@@ -9,6 +9,7 @@ logger = logging.getLogger(__name__)
 def search_jobs_web(query: str, location: str = "", max_results: int = 10) -> list[dict[str, Any]]:
     from google_search_results import GoogleSearch
     from app.config import get_settings
+    
     settings = get_settings()
     search_query = f"{query} in {location}" if location else query
     try:

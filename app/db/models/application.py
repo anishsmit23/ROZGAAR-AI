@@ -20,6 +20,7 @@ class ApplicationState(str, enum.Enum):
     ACKNOWLEDGED = "ACKNOWLEDGED"
     INTERVIEW_SCHEDULED = "INTERVIEW_SCHEDULED"
     CLOSED = "CLOSED"
+    FAILED = "FAILED"
 
 
 class ApplicationStage(enum.IntEnum):
@@ -31,6 +32,7 @@ class ApplicationStage(enum.IntEnum):
     ACKNOWLEDGED = 6
     INTERVIEW_SCHEDULED = 7
     CLOSED = 8
+    FAILED = 9
 
 
 APPLICATION_STAGE_ORDER: dict[ApplicationState, int] = {
@@ -42,6 +44,7 @@ APPLICATION_STAGE_ORDER: dict[ApplicationState, int] = {
     ApplicationState.ACKNOWLEDGED: 6,
     ApplicationState.INTERVIEW_SCHEDULED: 7,
     ApplicationState.CLOSED: 8,
+    ApplicationState.FAILED: 9,
 }
 
 

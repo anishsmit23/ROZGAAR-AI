@@ -17,7 +17,7 @@ def get_chroma_client() -> Any:
             "or run this service in Docker."
         ) from exc
 
-    parsed = urlparse(settings.chroma_url)
+    parsed = urlparse(settings.chroma_host)
     host = parsed.hostname or "localhost"
     port = parsed.port or 8000
     return chromadb.HttpClient(host=host, port=port)

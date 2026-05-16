@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -10,6 +11,8 @@ from app.auth.schemas import UserCreate, UserRead
 from app.auth.users import auth_backend, fastapi_users
 from app.config import get_settings
 from app.db.base import Base, async_engine
+
+logger = logging.getLogger(__name__)
 
 
 @asynccontextmanager
@@ -23,21 +26,20 @@ async def lifespan(app: FastAPI):
 
 
 def create_app() -> FastAPI:
+    # Validate configuration on startup; this will raise if config is invalid
     settings = get_settings()
+    logger.info(f"Configuration loaded: environment={settings.environment}, s3_endpoint={settings.s3_endpoint_url}")
+
     app = FastAPI(
         title="Rozgaar AI Job Agent",
         version="1.0.0",
         lifespan=lifespan,
     )
 
-    cors_origins = list(
-        {
-            "http://localhost:8501",
-            "http://127.0.0.1:8501",
-            settings.public_api_url,
-        }
-        | {o.strip() for o in settings.cors_extra_origins.split(",") if o.strip()}
-    )
+    cors_origins = [
+        "http://localhost:8501",
+        "http://127.0.0.1:8501",
+    ]
 
     app.add_middleware(
         CORSMiddleware,

@@ -17,6 +17,7 @@ from app.db.models.agent_run import AgentRun
 from app.db.models.job_posting import JobPosting
 from app.db.models.user import User
 from app.deps import get_current_user
+from app.storage.minio_client import get_presigned_url
 from app.schemas.application import (
     ApplicationCreateResponse,
     ApplicationRead,
@@ -30,16 +31,41 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
+def _parse_uuid(value: UUID | str, field_name: str) -> UUID:
+    try:
+        return value if isinstance(value, UUID) else UUID(str(value))
+    except (ValueError, TypeError, AttributeError) as exc:
+        raise HTTPException(status_code=422, detail=f"Invalid {field_name} format") from exc
+
+
+@router.get("/applications/{application_id}/resume/download")
+async def download_application_resume(
+    application_id: UUID,
+    user: User = Depends(get_current_user),
+) -> dict[str, str]:
+    async with async_session() as session:
+        result = await session.execute(
+            select(Application).where(Application.id == application_id, Application.user_id == user.id)
+        )
+        application = result.scalar_one_or_none()
+        if not application:
+            raise HTTPException(status_code=404, detail="Application not found")
+
+        if not application.resume_version_path:
+            raise HTTPException(status_code=404, detail="Resume not found")
+
+        download_url = await get_presigned_url(application.resume_version_path, expires_seconds=3600)
+
+        return {"download_url": download_url}
+
+
 @router.post("/resume/customize", response_model=ApplicationCreateResponse)
 async def tailor_resume(
     payload: ResumeCustomizeRequest,
     user: User = Depends(get_current_user),
 ) -> ApplicationCreateResponse:
     """Generate customized resume for a specific job."""
-    try:
-        job_id = UUID(payload.job_id)
-    except (ValueError, TypeError) as e:
-        raise HTTPException(status_code=422, detail=f"Invalid job_id format: {str(e)}")
+    job_id = _parse_uuid(payload.job_id, "job_id")
     
     async with async_session() as session:
         job = await session.get(JobPosting, job_id)
@@ -103,10 +129,12 @@ async def tailor_resume(
                 run.task_id = task_result.id
                 await session.commit()
     except Exception as e:
-        await session.merge(run)
-        run.status = "failed"
-        run.output_snapshot = {"error": str(e)}
-        await session.commit()
+        async with async_session() as session:
+            persisted_run = await session.get(AgentRun, run.id)
+            if persisted_run:
+                persisted_run.status = "failed"
+                persisted_run.output_snapshot = {"error": str(e)}
+                await session.commit()
         raise HTTPException(status_code=500, detail=f"Failed to queue resume customization task: {str(e)}")
 
     return ApplicationCreateResponse(application_id=str(application.id), task_id=task_result.id)
@@ -118,10 +146,7 @@ async def generate_email(
     user: User = Depends(get_current_user),
 ) -> ApplicationCreateResponse:
     """Generate cold email for a specific application."""
-    try:
-        application_id = UUID(payload.application_id)
-    except (ValueError, TypeError) as e:
-        raise HTTPException(status_code=422, detail=f"Invalid application_id format: {str(e)}")
+    application_id = _parse_uuid(payload.application_id, "application_id")
     
     async with async_session() as session:
         application = await session.get(Application, application_id)
@@ -136,9 +161,6 @@ async def generate_email(
                 detail=f"Cannot generate email - application is in {application.state} state. Valid states: {', '.join([s.value for s in valid_states])}"
             )
 
-        # Log state transition if needed
-        previous_state = application.state
-        
         run = AgentRun(
             user_id=user.id,
             graph_name="EmailGenerationGraph",

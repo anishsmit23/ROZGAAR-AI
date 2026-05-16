@@ -131,26 +131,20 @@ services:
         condition: service_healthy
     restart: unless-stopped
 
-  ui:
+  frontend:
     build:
       context: .
-      dockerfile: Dockerfile
-    container_name: rozgaar-ui
-    env_file:
-      - .env
-    environment:
-      PUBLIC_API_URL: http://api:8000
-      PUBLIC_API_DISPLAY_URL: http://localhost:8000
-    command: ["streamlit", "run", "ui/streamlit_app.py", "--server.port", "8501", "--server.address", "0.0.0.0"]
+      dockerfile: Dockerfile.frontend
+      args:
+        VITE_API_BASE_URL: ${PUBLIC_API_DISPLAY_URL:-http://localhost:8000}
+    container_name: rozgaar-frontend
     ports:
-      - "8501:8501"
-    volumes:
-      - ./:/app
+      - "3000:80"
     depends_on:
       api:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://127.0.0.1:8501/_stcore/health"]
+      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1/"]
       interval: 15s
       timeout: 10s
       retries: 10

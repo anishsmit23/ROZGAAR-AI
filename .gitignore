@@ -21,6 +21,13 @@ ENV/
 *.key
 *.crt
 
+# Documentation and text artifacts
+*.md
+*.txt
+!README.md
+!README*.md
+!requirements.txt
+
 # Packaging / build
 build/
 dist/
@@ -64,7 +71,8 @@ Thumbs.db
 # Optional local tooling
 node_modules/
 
-trdsrd.md
-nextphase.md
-pytest.ini
-TESTING.md
+# Local scratch / debug helpers
+check_*.py
+tmp_*.py
+test_*_debug.py
+auth_*.txt

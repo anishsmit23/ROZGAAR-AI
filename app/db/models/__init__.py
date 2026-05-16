@@ -9,4 +9,5 @@ from . import agent_event  # noqa: F401
 from . import agent_run  # noqa: F401
 from . import application  # noqa: F401
 from . import job_posting  # noqa: F401
+from . import rag_evaluation  # noqa: F401
 from . import user  # noqa: F401

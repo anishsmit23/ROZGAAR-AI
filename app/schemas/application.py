@@ -4,6 +4,8 @@ from datetime import datetime
 from uuid import UUID
 
 from pydantic import BaseModel
+
+
 class ApplicationCreateResponse(BaseModel):
     application_id: str
     task_id: str
@@ -23,8 +25,8 @@ class ApplicationStageUpdate(BaseModel):
 
 
 class ApplicationRead(BaseModel):
-    id: str
-    job_posting_id: str
+    id: UUID
+    job_posting_id: UUID
     state: str
     stage_number: int
     resume_version_path: str | None = None

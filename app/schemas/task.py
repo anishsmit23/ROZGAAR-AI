@@ -9,17 +9,23 @@ from pydantic import BaseModel, Field
 class TaskStatusResponse(BaseModel):
     """Response model for task status queries."""
     task_id: str = Field(..., description="Celery task ID")
-    status: str = Field(..., description="Task status (PENDING, STARTED, SUCCESS, FAILURE, RETRY, etc.)")
+    state: str = Field(..., description="Task state (PENDING, STARTED, SUCCESS, FAILURE, RETRY, etc.)")
+    status: str | None = Field(None, description="Deprecated alias for state.")
     result: dict[str, Any] | None = Field(None, description="Task result payload if completed")
     error: str | None = Field(None, description="Error message if task failed")
+    application_id: str | None = Field(None, description="Associated application ID, if available")
+    stage: str | None = Field(None, description="Associated application stage, if available")
     
     class Config:
         json_schema_extra = {
             "example": {
                 "task_id": "abc-123-def",
-                "status": "SUCCESS",
+                "state": "FAILURE",
+                "status": "FAILURE",
                 "result": {"application_id": "app-123", "status": "completed"},
-                "error": None,
+                "error": "Groq API rate limit exceeded after 3 retries",
+                "application_id": "app-123",
+                "stage": "FAILED",
             }
         }
 

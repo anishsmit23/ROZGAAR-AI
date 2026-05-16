@@ -1,10 +1,11 @@
 from __future__ import annotations
 
+from inspect import isawaitable
 import logging
 
 import httpx
 
-from app.config import settings
+from app.config import get_settings
 from app.scrapers.base import BaseJobScraper
 
 logger = logging.getLogger(__name__)
@@ -30,8 +31,9 @@ class SerpAPIJobScraper:
         if not query or not query.strip():
             logger.warning("Empty search query provided")
             return []
-            
-        if not settings.SERPAPI_KEY:
+        
+        settings = get_settings()
+        if not settings.serpapi_key:
             logger.error("SERPAPI_KEY not configured")
             return []
         
@@ -39,7 +41,7 @@ class SerpAPIJobScraper:
             "engine": "google_jobs",
             "q": query.strip(),
             "location": location,
-            "api_key": settings.SERPAPI_KEY,
+            "api_key": settings.serpapi_key,
             "hl": "en",
             "num": 20,
         }
@@ -49,6 +51,8 @@ class SerpAPIJobScraper:
                 response = await client.get(self.BASE_URL, params=params)
                 response.raise_for_status()
                 data = response.json()
+                if isawaitable(data):
+                    data = await data
                 jobs = data.get("jobs_results", [])
                 logger.info(f"Found {len(jobs)} jobs for '{query}' in {location}")
                 return jobs

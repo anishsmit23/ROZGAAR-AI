@@ -48,11 +48,11 @@ celery_app.conf.update(
     
     # Periodic tasks configuration
     beat_schedule={
-        # Add periodic tasks here if needed
-        # Example: "check-jobs-every-hour": {
-        #     "task": "app.tasks.scraper_tasks.run_scheduled_scrape",
-        #     "schedule": crontab(minute=0),  # Every hour
-        # },
+        "run-rag-evaluation-daily": {
+            "task": "app.tasks.agent_tasks.run_rag_evaluation",
+            "schedule": crontab(hour=0, minute=0),
+            "args": (10,),
+        },
     },
 )
 
@@ -62,3 +62,4 @@ celery_app.autodiscover_tasks(["app.tasks"])
 # Explicitly import task modules to ensure registration
 from app.tasks import agent_tasks  # noqa: E402, F401
 from app.tasks import scraper_tasks  # noqa: E402, F401
+from app.tasks import resume_tasks  # noqa: E402, F401
