@@ -171,9 +171,6 @@ def render_auth_panel() -> None:
                         data=payload,
                         auth=False,
                     )
-                st.write(f"DEBUG: email='{email}' normalized='{normalized}'")
-                st.write(f"DEBUG: endpoint={PUBLIC_API_URL}{API_PREFIX}/auth/jwt/login")
-                st.write(f"DEBUG: status={status}, error={error}")
                 if error:
                     st.error(f"Login failed: {error}")
                 elif isinstance(result, dict) and result.get("access_token"):
@@ -201,7 +198,6 @@ def render_auth_panel() -> None:
                     "skills": [s.strip() for s in skills.split(",") if s.strip()] or None,
                     "experience_years": int(experience),
                 }
-                st.write(f"DEBUG: Registering at {PUBLIC_API_URL}{API_PREFIX}/auth/register")
                 with st.spinner("Creating account..."):
                     reg_result, error, status = request_api(
                         "POST",
@@ -209,13 +205,11 @@ def render_auth_panel() -> None:
                         json=payload,
                         auth=False,
                     )
-                st.write(f"DEBUG: Register response status={status}, error={error}, result={reg_result}")
                 if error:
                     st.error(error)
                 else:
                     st.success(f"Account created: {reg_result}")
                     login_payload = {"username": normalized_email, "password": password}
-                    st.write(f"DEBUG: Auto-logging in with username='{normalized_email}'")
                     with st.spinner("Auto-logging in..."):
                         login_result, login_error, login_status = request_api(
                             "POST",
@@ -223,7 +217,6 @@ def render_auth_panel() -> None:
                             data=login_payload,
                             auth=False,
                         )
-                    st.write(f"DEBUG: Login status={login_status}, error={login_error}")
                     if login_error:
                         st.success("Account created. You can log in now.")
                         st.warning(f"Auto-login failed: {login_error}")
